@@ -41,6 +41,7 @@ class SGD(Optimizer):
         pass
 
 
+
 def sgd(params, lr):
     with torch.no_grad():
         for p in params:
