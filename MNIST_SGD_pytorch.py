@@ -7,6 +7,7 @@ import torchvision
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
+import pylab as pl
 
 train_dataset = datasets.MNIST(root='./data/06_MNIST', train=True, transform=transforms.ToTensor(),
                                download=True)
@@ -126,7 +127,10 @@ optimizer = SGD(params=model.parameters(), lr=lr)
 
 
 def train_model():
+    loss_list = []
+    j = []
     for i, data in enumerate(train_loader):
+        j.append(i)
         inputs, labels = data
 
         out = model(inputs)
@@ -134,14 +138,19 @@ def train_model():
         one_hot = torch.zeros(inputs.shape[0], 10).scatter(1, labels, 1)
 
         loss1 = loss(out, one_hot)
-
+        loss_list.append(loss1.data)
         optimizer.zero_grad()
         loss1.backward()
         optimizer.step()
 
+    fig = plt.figure(figsize=(7, 5))
+    plt.plot(j, loss_list, 'g-')
+    plt.show()
+
 
 def test_model():
     correct = 0
+
     for i, data in enumerate(test_loader):
         inputs, label = data
         out = model(inputs)
