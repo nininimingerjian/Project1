@@ -90,5 +90,5 @@ if __name__ == '__main__':
             if i_train % 20 == 0:
                 test_model()
 
-        plt.plot(loss_list, 'g-')
+        plt.plot(j,loss_list, 'g-')
         plt.show()
