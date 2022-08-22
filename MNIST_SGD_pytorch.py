@@ -1,8 +1,10 @@
+from typing import List, Optional
+
 import numpy as np
 from torch.optim import _functional as F
 import matplotlib.pyplot as plt
 import torch
-from torch import nn, optim
+from torch import nn, optim, Tensor
 import torchvision
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
@@ -42,6 +44,39 @@ class Net(nn.Module):
         x = self.softmax(x)
         return x
 
+
+def sgd(params: List[Tensor],
+        d_p_list: List[Tensor],
+        momentum_buffer_list: List[Optional[Tensor]],
+        weight_decay: float,
+        momentum: float,
+        lr: float,
+        dampening: float,
+        nesterov: bool):
+
+
+    for i, param in enumerate(params):
+        # 获取梯度d_p
+        d_p = d_p_list[i]
+        if weight_decay != 0:  # 正则化
+            d_p = d_p.add(param, alpha=weight_decay)
+
+        if momentum != 0:
+            buf = momentum_buffer_list[i]
+
+            if buf is None:
+                buf = torch.clone(d_p).detach()
+                momentum_buffer_list[i] = buf
+            else:
+                buf.mul_(momentum).add_(d_p, alpha=1 - dampening)  # 计算动量
+
+            if nesterov:
+                d_p = d_p.add(buf, alpha=momentum)
+            else:
+                d_p = buf
+
+        # param.add_(d_p,alpha=-lr) 对参数进行更新
+        param.data.add_(d_p, alpha=-lr)
 
 class SGD(Optimizer):
     def __init__(self, params, lr=0.0, momentum=0, dampening=0,
@@ -91,7 +126,7 @@ class SGD(Optimizer):
                     else:
                         momentum_buffer_list.append(state['momentum_buffer'])
 
-            F.sgd(params_with_grad,
+            sgd(params_with_grad,
                   d_p_list,
                   momentum_buffer_list,
                   weight_decay,
@@ -143,7 +178,7 @@ def train_model():
         loss1.backward()
         optimizer.step()
 
-    fig = plt.figure(figsize=(7, 5))
+    # fig = plt.figure(figsize=(7, 5))
     plt.plot(j, loss_list, 'g-')
     plt.show()
 
