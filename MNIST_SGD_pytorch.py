@@ -81,14 +81,19 @@ if __name__ == '__main__':
             loss1.backward()
             grad_list = []
 
+            param_mean = 0
             for param in model.parameters():  # 784*10+10=7850
                 grad_list.append(param.grad)
+                param_mean += param.grad.data / batch_size
 
             for i, param in enumerate(model.parameters()):
-                param.data -= grad_list[i] * lr
+                update = param.grad.data - grad_list[i] + param_mean
+                param_mean = (param.grad.data - grad_list[i]) / batch_size
+                grad_list[i] = param.grad.data
+                param.data -= update * lr
 
             if i_train % 20 == 0:
                 test_model()
 
-        plt.plot(j,loss_list, 'g-')
+        plt.plot(j, loss_list, 'g-')
         plt.show()
