@@ -1,3 +1,5 @@
+import copy
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -25,7 +27,7 @@ class Net(nn.Module):
 
 model = Net()
 # loss = nn.CrossEntropyLoss(reduction='none')
-lr = 0.3
+lr = 0.01
 loss = nn.CrossEntropyLoss()
 
 
@@ -46,6 +48,7 @@ if __name__ == '__main__':
     test_dataset = datasets.MNIST(root='./data/06_MNIST', train=False, transform=transforms.ToTensor(),
                                   download=True)
 
+    n_samples = train_dataset.data.shape[0]
     batch_size = 64
 
     train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size,
@@ -60,13 +63,12 @@ if __name__ == '__main__':
     # plt.show()
 
     num_epochs = 1
+    param_mean = copy.deepcopy(model)
+    loss_list = []
+    pre_grad = [copy.deepcopy(model) for i in range(n_samples)]
     for epoch in range(num_epochs):
-        print(f'epoch:{epoch}')
-        loss_list = []
-        j = []
+
         for i_train, data in enumerate(train_loader):
-            grad = 0
-            j.append(i_train)
             inputs, labels = data
             img = Variable(inputs.view(inputs.size(0), -1))
             labels = Variable(labels)
@@ -81,19 +83,26 @@ if __name__ == '__main__':
             loss1.backward()
             grad_list = []
 
-            param_mean = 0
-            for param in model.parameters():  # 784*10+10=7850
-                grad_list.append(param.grad)
-                param_mean += param.grad.data / batch_size
+            # for param in model.parameters():  # 784*10+10=7850
+            #     grad_list.append(param.grad)
+            #
+            # for i, param in enumerate(model.parameters()):
+            #     param.data -= grad_list[i] * lr
 
-            for i, param in enumerate(model.parameters()):
-                update = param.grad.data - grad_list[i] + param_mean
-                param_mean = (param.grad.data - grad_list[i]) / batch_size
-                grad_list[i] = param.grad.data
-                param.data -= update * lr
+            # print(param_mean)
+            # for param_m in param_mean.parameters():
+            #     print(param_m)
 
-            if i_train % 20 == 0:
+            for param, param_m, pre_gr in zip(model.parameters(), param_mean.parameters(),
+                                              pre_grad[i_train].parameters()):
+                update = (param.grad.data - pre_gr.data) + param_m.data
+                param_m.data += (param.grad.data - pre_gr.data) / n_samples
+                pre_gr.data = param.grad.data
+                param.data.sub_(lr * update)
+
+            if i_train % 10 == 0:
+                print('i:', i_train)
                 test_model()
 
-        plt.plot(j, loss_list, 'g-')
+        plt.plot(loss_list, 'g-')
         plt.show()
