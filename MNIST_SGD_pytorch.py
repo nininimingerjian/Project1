@@ -15,31 +15,37 @@ class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         self.n1 = nn.Linear(784, 10)  # 28*28,10个分类
-        # self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
         # 【64，1，28，28】 -》 【64，784】
-        x = x.view(x.size()[0], -1)
+        # x = x.view(x.size()[0], -1)
+        x = torch.flatten(x)
         x = self.n1(x)
-        # x = self.softmax(x)
         return x
 
 
-class MyDataSet():
-    def __init__(self, dataset, i_iter):
+class MyDataSet:
+    """
+    每次取一个batch_size数据
+    """
+    def __init__(self, dataset, batch_size):
         self.data = dataset
-        self.i_iter = torch.LongTensor(i_iter)
+        self.num_samples = self.data.shape[0]
+        self.bat_size = batch_size
 
     def __iter__(self):
-        return iter(self.i_iter)
+        return self
 
-    def __len__(self):
-        return len(self.i_iter)
+    def __next__(self):
+        bat_indices = torch.randperm(self.num_samples)[:self.bat_size].tolist()
+        return self.data[bat_indices], bat_indices
 
 
 model = Net()
 # loss = nn.CrossEntropyLoss(reduction='none')
 lr = 0.01
+batch_size = 64
+iterations = 1e3
 loss = nn.CrossEntropyLoss()
 
 
@@ -61,17 +67,16 @@ if __name__ == '__main__':
                                   download=True)
 
     n_samples = train_dataset.data.shape[0]
-    batch_size = 64
     k = np.random.randint(0, n_samples, n_samples)
-    sampler = MyDataSet(train_dataset, k)
-    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, sampler=sampler,
-                              shuffle=False)
+    train_loader = MyDataSet(train_dataset, batch_size)
+    # train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, sampler=sampler,
+    #                           shuffle=False)
     test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size,
                              shuffle=True)
 
     features, labels = next(iter(train_loader))
-    features = Variable(features.view(features.size(0), -1))
-    labels = Variable(labels)
+    features = torch.tensor(features.view(features.size(0), -1))
+    labels = torch.tensor(labels)
     out_ = model(features)
     loss_ = loss(out_, labels)
     loss_.backward()
@@ -88,6 +93,11 @@ if __name__ == '__main__':
     # plt.show()
 
     loss_list = []
+
+    for iter_ind in range( iterations+1 ):
+        (bat_data, bat_target), bat_indices = next(train_loader)
+
+        ...
 
     for i_train, data in enumerate(train_loader):
         inputs, labels = data
