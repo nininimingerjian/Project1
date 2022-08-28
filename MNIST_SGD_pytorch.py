@@ -21,25 +21,27 @@ class Net(nn.Module):
         # 【64，1，28，28】 -》 【64，784】
         x = x.view(x.size()[0], -1)
         x = self.n1(x)
-        # x = self.softmax(x)
         return x
 
 
-class MyDataSet():
-    def __init__(self, dataset, i_iter):
+class MyDataSet:
+    def __init__(self, dataset, batch_size):
         self.data = dataset
-        self.i_iter = torch.LongTensor(i_iter)
+        self.num_samples = dataset.data.shape[0]
+        self.bat_size = batch_size
 
     def __iter__(self):
-        return iter(self.i_iter)
+        return self
 
-    def __len__(self):
-        return len(self.i_iter)
+    def __next__(self):
+        bat_indices = torch.randperm(self.num_samples)[:self.bat_size].tolist()
+        return self.data[bat_indices], bat_indices
 
 
 model = Net()
-# loss = nn.CrossEntropyLoss(reduction='none')
 lr = 0.01
+batch_size = 64
+iterations = 1000
 loss = nn.CrossEntropyLoss()
 
 
@@ -61,58 +63,74 @@ if __name__ == '__main__':
                                   download=True)
 
     n_samples = train_dataset.data.shape[0]
-    batch_size = 64
     k = np.random.randint(0, n_samples, n_samples)
-    sampler = MyDataSet(train_dataset, k)
-    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, sampler=sampler,
-                              shuffle=False)
-    test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size,
+    train_loader = DataLoader(dataset=train_dataset, batch_size=n_samples,
+                              shuffle=True)
+    test_loader = DataLoader(dataset=test_dataset, batch_size=n_samples,
                              shuffle=True)
 
-    features, labels = next(iter(train_loader))
-    features = Variable(features.view(features.size(0), -1))
-    labels = Variable(labels)
-    out_ = model(features)
-    loss_ = loss(out_, labels)
-    loss_.backward()
-    pre_grad = []
+    # features, labels = next(iter(train_loader))
+    # features = torch.tensor(features.view(features.size(0), -1))
+    # labels = torch.tensor(labels)
+    # out_ = model(features)
+    # loss_ = loss(out_, labels)
+    # loss_.backward()
     param_mean = copy.deepcopy(model)
-    for p1, p2 in zip(model.parameters(), param_mean.parameters()):
-        p2.data = p1.grad.data
+
     pre_grad = [param_mean for i in range(n_samples)]
-
-    # train_x, train_y = next(iter(train_loader))
-    # img = torchvision.utils.make_grid(train_x, nrow=10)
-    # img = img.numpy().transpose(1, 2, 0)
-    # plt.imshow(img)
-    # plt.show()
-
     loss_list = []
+    for _, data in enumerate(train_loader):
+        img = data[0]
+        labels = data[1]
+        for i in range(n_samples):
+            features = img[i]
+            features = Variable(features.view(features.size(0), -1))
+            label_i = labels[i]
+            label_i = torch.tensor([label_i])
+            out_ = model(features)
 
-    for i_train, data in enumerate(train_loader):
-        inputs, labels = data
-        img = Variable(inputs.view(inputs.size(0), -1))
-        labels = Variable(labels)
+            loss_ = loss(out_, label_i)
+            loss_.backward()
+            for p in param_mean.parameters():
+                p.data.sub_(p.data)
+            for p1, p2, p3 in zip(model.parameters(), pre_grad[i].parameters(), param_mean.parameters()):
+                p2.data = p1.grad.data
+                p3.data += (1.0 / n_samples) * p1.grad.data
 
-        out = model(img)
-        # labels = labels.reshape(-1, 1)
-        # one_hot = torch.zeros(inputs.shape[0], 10).scatter(1, labels, 1)
+        # train_x, train_y = next(iter(train_loader))
+        # img = torchvision.utils.make_grid(train_x, nrow=10)
+        # img = img.numpy().transpose(1, 2, 0)
+        # plt.imshow(img)
+        # plt.show()
 
-        loss1 = loss(out, labels)
-        loss_list.append(loss1.data)
+        loss_pre = 3
+        for i in range(20000):
+            j = np.random.randint(0, n_samples)
 
-        loss1.backward()
+            features = img[j]
+            features = Variable(features.view(features.size(0), -1))
+            label_j = labels[j]
+            label_j = torch.tensor([label_j])
+            out_ = model(features)
 
-        for param, param_m, pre_gr in zip(model.parameters(), param_mean.parameters(),
-                                          pre_grad[k[i_train+1]].parameters()):
-            update = (param.grad.data - pre_gr.data) + param_m.data
-            param_m.data += (param.grad.data - pre_gr.data) * (1.0 / n_samples)
-            pre_gr.data = param.grad.data
-            param.data.sub_(lr * update)
+            # labels = labels.reshape(-1, 1)
+            # one_hot = torch.zeros(inputs.shape[0], 10).scatter(1, labels, 1)
+            loss_ = loss(out_, label_j)
+            if loss_.data < 4:
+                loss_list.append(loss_.data)
 
-        if i_train % 100 == 0:
-            print('i:', i_train)
-            test_model()
+            loss_.backward()
 
-    plt.plot(loss_list, 'g-')
+            for param, param_m, pre_gr in zip(model.parameters(), param_mean.parameters(),
+                                              pre_grad[j].parameters()):
+                update = (param.grad.data - pre_gr.data) + param_m.data
+                param_m.data += (param.grad.data - pre_gr.data) * (1.0 / n_samples)
+                pre_gr.data = param.grad.data
+                param.data.sub_(lr * update)
+
+            if i % 1000 == 0:
+                print('i:', i)
+                test_model()
+
+    plt.plot(loss_list, 'g-', scalex=[0, 1])
     plt.show()
