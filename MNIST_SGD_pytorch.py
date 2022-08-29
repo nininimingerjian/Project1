@@ -15,11 +15,10 @@ class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         self.n1 = nn.Linear(784, 10)  # 28*28,10个分类
-        # self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
         # 【64，1，28，28】 -》 【64，784】
-        x = x.view(x.size()[0], -1)
+        x = torch.flatten(x)
         x = self.n1(x)
         return x
 
@@ -116,8 +115,12 @@ if __name__ == '__main__':
             # labels = labels.reshape(-1, 1)
             # one_hot = torch.zeros(inputs.shape[0], 10).scatter(1, labels, 1)
             loss_ = loss(out_, label_j)
-            if loss_.data < 4:
-                loss_list.append(loss_.data)
+            if i < 2000:
+                if loss_.data < 4:
+                    loss_list.append(loss_.data)
+            else:
+                if loss_.data < 0.1:
+                    loss_list.append(loss_.data)
 
             loss_.backward()
 
