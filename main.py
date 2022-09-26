@@ -9,7 +9,9 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader, Sampler
 from torchvision import datasets, transforms
 
+np.random.seed(0)
 torch.manual_seed(0)
+torch.cuda.manual_seed(0)
 
 batch_size = 64
 loss = nn.CrossEntropyLoss()
@@ -54,8 +56,17 @@ class Net(nn.Module):
         return x
 
 
+def init_model_param(model):
+    for p in model.parameters():
+        p.data.sub_(p.data)
+
+
+model_origin = Net()
+
+
 def SVRG_train():
-    model = Net()
+    model = copy.deepcopy(model_origin)
+    init_model_param(model)
     lr = 0.18
     m = 50
     iterations = 40
@@ -100,7 +111,8 @@ def SVRG_train():
 
 
 def SAGA_train():
-    model = Net()
+    model = copy.deepcopy(model_origin)
+    init_model_param(model)
     lr = 0.00001
     iterations = 2000
     loss_list = []
@@ -143,7 +155,8 @@ def SAGA_train():
 
 
 def SAG_train():
-    model = Net()
+    model = copy.deepcopy(model_origin)
+    init_model_param(model)
     iterations = 2000
     lr = 0.8
     param_d = copy.deepcopy(model)
@@ -172,7 +185,8 @@ def SAG_train():
 
 
 def Finito_train():
-    model = Net()
+    model = copy.deepcopy(model_origin)
+    init_model_param(model)
     lr = 0.1
     iterations = 2000
     grad_mean = copy.deepcopy(model)
@@ -220,7 +234,8 @@ def Finito_train():
 
 
 def Finito_Perm_train():
-    model = Net()
+    model = copy.deepcopy(model_origin)
+    init_model_param(model)
     lr = 0.1
     grad_mean = copy.deepcopy(model)
     for p in grad_mean.parameters():
